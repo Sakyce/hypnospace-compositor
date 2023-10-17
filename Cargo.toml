@@ -1,0 +1,12 @@
+[package]
+name = "compositor"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+smithay = { git = "https://github.com/Smithay/smithay", branch = "master" }
+wayland-protocols = "0.31.0"
+wayland-server = "0.31.0"
+tracing-subscriber = { version = "0.3.16", features = ["env-filter"] }
