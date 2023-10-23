@@ -84,11 +84,11 @@ impl SeatHandler for App {
 }
 
 pub struct App {
-    compositor_state: CompositorState,
-    xdg_shell_state: XdgShellState,
-    shm_state: ShmState,
-    seat_state: SeatState<Self>,
-    data_device_state: DataDeviceState,
+    pub compositor_state: CompositorState,
+    pub xdg_shell_state: XdgShellState,
+    pub shm_state: ShmState,
+    pub seat_state: SeatState<Self>,
+    pub data_device_state: DataDeviceState,
 
-    seat: Seat<Self>,
+    pub seat: Seat<Self>,
 }
