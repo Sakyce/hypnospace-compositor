@@ -1,92 +1,59 @@
-#![allow(unused)]
+#![allow(irrefutable_let_patterns)]
 
-use smithay::{
-    backend::{
-        renderer::{gles::GlesRenderer, utils::draw_render_elements, Frame, Renderer},
-        winit,
-    },
-    delegate_compositor, delegate_data_device, delegate_seat, delegate_shm, delegate_xdg_shell,
-    input::SeatState,
-    utils::Rectangle,
-    wayland::{
-        compositor::CompositorState, selection::data_device::DataDeviceState,
-        shell::xdg::XdgShellState, shm::ShmState,
-    },
+mod handlers;
+
+mod grabs;
+mod input;
+mod state;
+mod winit;
+
+use smithay::reexports::{
+    calloop::EventLoop,
+    wayland_server::{Display, DisplayHandle},
 };
-use wayland_server::{Display, ListeningSocket};
+pub use state::Smallvil;
 
-mod app;
-mod clientstate;
-
-use crate::app::App;
-
-// Macros used to delegate protocol handling to types in the app state.
-delegate_xdg_shell!(App);
-delegate_compositor!(App);
-delegate_shm!(App);
-delegate_seat!(App);
-delegate_data_device!(App);
-
-fn main() {
-    println!("Started");
-    match run_winit() {
-        Result::Ok(_) => println!("Finished!"),
-        Result::Err(err) => panic!("{}", err),
-    };
+pub struct CalloopData {
+    state: Smallvil,
+    display_handle: DisplayHandle,
 }
 
-fn run_winit() -> Result<(), Box<dyn std::error::Error>> {
-    let display: Display<App> = Display::new()?;
-    let dh = display.handle();
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    if let Ok(env_filter) = tracing_subscriber::EnvFilter::try_from_default_env() {
+        tracing_subscriber::fmt().with_env_filter(env_filter).init();
+    } else {
+        tracing_subscriber::fmt().init();
+    }
 
-    let compositor_state = CompositorState::new::<App>(&dh);
-    let shm_state = ShmState::new::<App>(&dh, vec![]);
-    let mut seat_state: SeatState<App> = SeatState::new();
-    let seat: smithay::input::Seat<App> = seat_state.new_wl_seat(&dh, "winit");
+    let mut event_loop: EventLoop<CalloopData> = EventLoop::try_new()?;
 
-    let mut state = {
-        App {
-            compositor_state,
-            xdg_shell_state: XdgShellState::new::<App>(&dh),
-            shm_state,
-            seat_state,
-            data_device_state: DataDeviceState::new::<App>(&dh),
-            seat,
-        }
+    let display: Display<Smallvil> = Display::new()?;
+    let display_handle = display.handle();
+    let state = Smallvil::new(&mut event_loop, display);
+
+    let mut data = CalloopData {
+        state,
+        display_handle,
     };
 
-    let listener = ListeningSocket::bind("wayland-5")?;
-    //let clients = Vec::new();
+    crate::winit::init_winit(&mut event_loop, &mut data)?;
 
-    let (mut backend, mut winit) = winit::init::<GlesRenderer>()?;
+    let mut args = std::env::args().skip(1);
+    let flag = args.next();
+    let arg = args.next();
 
-    let start_time = std::time::Instant::now();
-
-    let keyboard = state.seat.add_keyboard(Default::default(), 200, 200);
-
-    std::env::set_var("WAYLAND_DISPLAY", "wayland-5");
-
-    // Create a weston terminal
-    //std::process::Command::new("weston-terminal").spawn().ok();
-
-    loop {
-        backend.bind()?;
-
-        // Do the rendering
-        let screen_size = backend.window_size().physical_size;
-        let full_rectangle = Rectangle::from_loc_and_size((0, 0), screen_size);
-
-        let mut frame = backend
-            .renderer()
-            .render(screen_size, smithay::utils::Transform::Normal)?;
-        frame.clear([1.0, 0.0, 0.0, 1.0], &[full_rectangle])?;
-        frame.finish()?;
-
-        //draw_render_elements(&mut frame, 1.0, &elements, )
-
-        //backend.submit(Option::Some(&[full_rectangle]))?;
-
+    match (flag.as_deref(), arg) {
+        (Some("-c") | Some("--command"), Some(command)) => {
+            std::process::Command::new(command).spawn().ok();
+        }
+        _ => {
+            std::process::Command::new("weston-terminal").spawn().ok();
+        }
     }
+
+    event_loop.run(None, &mut data, move |_| {
+        // Smallvil is running
+    })?;
 
     Ok(())
 }
