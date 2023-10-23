@@ -1,8 +1,17 @@
 #![allow(unused)]
 
 use smithay::{
+    backend::{
+        renderer::{gles::GlesRenderer, utils::draw_render_elements, Frame, Renderer},
+        winit,
+    },
+    delegate_compositor, delegate_data_device, delegate_seat, delegate_shm, delegate_xdg_shell,
     input::SeatState,
-    wayland::{compositor::CompositorState, shm::ShmState, shell::xdg::XdgShellState, selection::data_device::DataDeviceState}, delegate_xdg_shell, delegate_compositor, delegate_shm, delegate_seat, delegate_data_device, backend::{renderer::{gles::GlesRenderer, Renderer, Frame, utils::draw_render_elements}, winit}, utils::Rectangle,
+    utils::Rectangle,
+    wayland::{
+        compositor::CompositorState, selection::data_device::DataDeviceState,
+        shell::xdg::XdgShellState, shm::ShmState,
+    },
 };
 use wayland_server::{Display, ListeningSocket};
 
@@ -22,7 +31,7 @@ fn main() {
     println!("Started");
     match run_winit() {
         Result::Ok(_) => println!("Finished!"),
-        Result::Err(err) => panic!("{}", err)
+        Result::Err(err) => panic!("{}", err),
     };
 }
 
@@ -61,11 +70,11 @@ fn run_winit() -> Result<(), Box<dyn std::error::Error>> {
     //std::process::Command::new("weston-terminal").spawn().ok();
 
     loop {
+        backend.bind()?;
 
         // Do the rendering
         let screen_size = backend.window_size().physical_size;
         let full_rectangle = Rectangle::from_loc_and_size((0, 0), screen_size);
-
 
         let mut frame = backend
             .renderer()
@@ -76,6 +85,7 @@ fn run_winit() -> Result<(), Box<dyn std::error::Error>> {
         //draw_render_elements(&mut frame, 1.0, &elements, )
 
         //backend.submit(Option::Some(&[full_rectangle]))?;
+
     }
 
     Ok(())
